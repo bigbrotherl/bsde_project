@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.training import moving_averages
 
-TF_DTYPE = tf.float64
+TF_DTYPE = tf.float32
 MOMENTUM = 0.99
 EPSILON = 1e-6
 DELTA_CLIP = 50.0
@@ -36,7 +36,11 @@ class FeedForwardModel(object):
         # begin sgd iteration
         for step in range(self._config.num_iterations+1):
             if step % self._config.logging_frequency == 0:
-                loss, init = self._sess.run([self._loss, self._y_init], feed_dict=feed_dict_valid)
+                loss, init, graphs = self._sess.run([self._loss, self._y_init, self.graphs
+                                                         ], feed_dict=feed_dict_valid)
+                # a = np.asarray(graphs)
+                # a = a.reshape([-1, 82])
+                # print("a:", a)
                 elapsed_time = time.time()-start_time+self._t_build
                 training_history.append([step, loss, init, elapsed_time])
                 if self._config.verbose:
@@ -46,7 +50,7 @@ class FeedForwardModel(object):
             self._sess.run(self._train_ops, feed_dict={self._dw: dw_train,
                                                        self._x: x_train,
                                                        self._is_training: True})
-        return np.array(training_history)
+        return np.array(training_history), graphs
 
     def build(self):
         start_time = time.time()
@@ -64,12 +68,26 @@ class FeedForwardModel(object):
         all_one_vec = tf.ones(shape=tf.stack([tf.shape(self._dw)[0], 1]), dtype=TF_DTYPE)
         y = all_one_vec * self._y_init
         z = tf.matmul(all_one_vec, z_init)
+        x = np.linspace(80, 120, 82)
+        self.x = tf.constant(x, dtype=TF_DTYPE, shape=[1, 82, 1])
+    #    x = tf.get_variable(name="x", initializer=tf.linspace(81.0, 120.0, 78),
+    #                        shape=tf.stack([tf.shape(self._dw)[0], 1]), dtype=TF_DTYPE)
         with tf.variable_scope('forward'):
+            self.graphs = []
+            self.z = []
             for t in range(0, self._num_time_interval-1):
+                print("t:", t)
                 y = y - self._bsde.delta_t * (
                     self._bsde.f_tf(time_stamp[t], self._x[:, :, t], y, z)
                 ) + tf.reduce_sum(z * self._dw[:, :, t], 1, keep_dims=True)
                 z = self._subnetwork(self._x[:, :, t + 1], str(t + 1)) / self._dim
+                self.z.append(z)
+                print(tf.shape(self._x[:, :, t + 1]))
+                l = []
+                for i in range(82):
+                  #  print("i:", i)
+                    l.append(self._subnetwork(self.x[:, i], str(t + 1)) / self._dim)
+                self.graphs.append(l)
             # terminal time
             y = y - self._bsde.delta_t * self._bsde.f_tf(
                 time_stamp[-1], self._x[:, :, -2], y, z
@@ -95,7 +113,7 @@ class FeedForwardModel(object):
         self._t_build = time.time()-start_time
 
     def _subnetwork(self, x, name):
-        with tf.variable_scope(name):
+        with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
             # standardize the path input first
             # the affine  could be redundant, but helps converge faster
             hiddens = self._batch_norm(x, name='path_input_norm')
