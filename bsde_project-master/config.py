@@ -14,25 +14,31 @@ class Config(object):
 
 class AllenCahnConfig(Config):
     total_time = 0.3
-    num_time_interval = 20
+    num_time_interval = 10
     dim = 100
     lr_values = list(np.array([5e-4, 5e-4]))
     lr_boundaries = [2000]
     num_iterations = 4000
     num_hiddens = [dim, dim + 10, dim + 10, dim]
     y_init_range = [0.3, 0.6]
+    
+    z_layernum = 10
+    z_units = [dim + 20]*z_layernum
 
 
 class HJBConfig(Config):
     # Y_0 is about 4.5901.
     dim = 100
     total_time = 1.0
-    num_time_interval = 20
+    num_time_interval = 10
     lr_boundaries = [400]
-    num_iterations = 2000
+    num_iterations = 4000
     lr_values = list(np.array([1e-2, 1e-2]))
     num_hiddens = [dim, dim+10, dim+10, dim]
     y_init_range = [0, 1]
+    
+    z_layernum = 10
+    z_units = [dim + 20]*z_layernum
 
 class EuropeanCallConfig(Config):
     num_iterations = 20000
@@ -49,15 +55,16 @@ class EuropeanCallConfig(Config):
     ob_num = 82
 
 
-
 class PricingOptionConfig(Config):
     dim = 100
     total_time = 0.5
-    num_time_interval = 20
+    num_time_interval = 10
     lr_values = list(np.array([5e-3, 5e-3]))
     lr_boundaries = [2000]
     num_iterations = 4000
-    num_hiddens = [dim, dim+10, dim+10, dim]
+    
+    z_layernum = 10
+    z_units = [dim + 20]*z_layernum
     y_init_range = [15, 18]
 
 
